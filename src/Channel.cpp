@@ -1,87 +1,65 @@
 #include "Channel.hpp"
 
-Channel::Channel(Client *client, bool isAdmin)
+Channel::~Channel()
 {
-    addClient(client);
-    _needpassword = false;
-    if(isAdmin)
-    {
-        setAdmin(client->getNickname());
-    }
-    _isRegistered = true;
-}
 
-Channel::Channel(std::string name, Client *client)
+}
+Channel::Channel(Client *client, std::string channelname, std::string password)
 {
-    _name = name;
-    _needpassword = false;
-    addClient(client);
-    setAdmin(client->getNickname());
-    _isRegistered = true;
-}
-
-std::string const &Channel::getName()
-{
-    return (_name);
-}
-
-void Channel::addClient(Client *client) {
-    _clients.push_back(client);
-}
-
-bool Channel::getRegister() const {
-    return _isRegistered;
-}
-
-std::vector<Client *> Channel::getClients() const {
-    return _clients;
-}
-
-void Channel::setAdmin(std::string clientNickname) {
-    _admins[clientNickname] = true;
-}
-
-bool Channel::isAdmin(std::string clientNickname) const {
-    return (_admins.find(clientNickname) != _admins.end());
-}
-
-void Channel::setPassword(std::string password)
-{
+    _name = channelname;
     _password = password;
-    _needpassword = true;
+    _needpass = true;
+    _clients[client->getUsername()] = client;
+    _admins[client->getUsername()] = client;
 }
-std::string const &Channel::getPassword()
+
+Channel::Channel(std::string channelname, std::string password)
+{
+    _name = channelname;
+    _password = password;
+    _needpass = false;
+}
+std::string Channel::getName()
+{
+    return(_name);
+}
+std::string Channel::getPassword()
 {
     return(_password);
 }
-
-bool Channel::neededPassword()
+bool       Channel::getNeed()
 {
-    return(_needpassword);
+    return(_needpass);
 }
-
-void Channel::print() const
+void       Channel::addClients(Client *clients)
 {
-    std::cout << "Channel: " << _name << "\n";
-    if (_needpassword == true)
+    if(_clients.find(clients->getUsername()) == _clients.end())
     {
-        std::cout << "Password =" << _password << std::endl;
+        _clients[clients->getUsername()] = clients;
     }
-    std::cout << "Clients\t\tAdmins\n";
-    size_t maxClients = _clients.size();
-    size_t maxAdmins = _admins.size();
-    size_t max = std::max(maxClients, maxAdmins);
-    for (size_t i = 0; i < max; ++i) {
-        if (i < maxClients) {
-            std::cout << _clients[i]->getNickname() << "\t\t";
-        } else {
-            std::cout << "\t\t";
-        }
-        if (i < maxAdmins) {
-            std::map<std::string, bool>::const_iterator it = _admins.begin();
-            std::advance(it, i);
-            std::cout << it->first;
-        }
-        std::cout << "\n";
+}
+void       Channel::addAdmins(Client *admins)
+{
+    if(_admins.find(admins->getUsername()) == _admins.end())
+    {
+        _admins[admins->getUsername()] = admins;
+    }
+}
+void       Channel::rmClients(std::string clientname)
+{
+    std::map<std::string , Client *>::iterator it = _clients.find(clientname);
+    if (it != _clients.end())
+    {
+        delete it->second;
+        _clients.erase(it);
+    }
+}
+void       Channel::rmAdmins(std::string adminname)
+{
+    std::map<std::string , Client *>::iterator it = _admins.find(adminname);
+    if (it != _admins.end())
+    {
+        delete it->second;
+        _admins.erase(it);
     }
 }

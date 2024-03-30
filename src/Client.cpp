@@ -1,44 +1,89 @@
 #include "Client.hpp"
 
-Client::Client(int fd, sockaddr_in addr) : socket_fd(fd), address(addr), _check(0), _register(false){}
+Client::Client(){}
 
 Client::~Client(){}
 
+Client::Client(int fd, sockaddr_in addr) : _socket_fd(fd), _address(addr), _register(false) , _check(0){}
 
-bool const & Client::getRegister()
+std::string Client::getPass()
 {
-    return (_register);
+    return (_pass);
 }
-
-std::string const & Client::getNickname()
+std::string Client::getUsername()
 {
-    return (_nickname);
+    return(_username);
 }
-std::string const & Client::getPassword()
+std::string Client::getNickname()
 {
-    return (_password);
+    return(_nickname);
 }
-
-std::string const & Client::getUsername()
+std::string Client::getRealname()
 {
-        return (_username);
+    return (_realname);
 }
-
-void Client::setRegister(bool reg)
+Client *Client::getClient()
 {
-    this->_register = reg;
+    return(this);
 }
-
-void Client::setNickname(std::string str)
+bool Client::getRegister()
 {
-    this->_nickname = str;
+    return(_register);
 }
 
-void Client::setUsername(std::string str)
-{
-    this->_username = str;
+void    Client::setPassword(std::string pass) {
+    _pass = pass;
 }
-void Client::setPassword(std::string str)
+
+void Client::setNickname(std::string nick)
 {
-    this->_password = str;
+    _nickname = nick;
+}
+
+void Client::setUsername(std::string username)
+{
+        _username = username;
+}
+
+void Client::setRegister(bool value)
+{
+    _register = value;
+}
+
+std::map<std::string, Channel *> Client::getUserChannel()
+{
+    return (_userchannel);
+}
+bool Client::alreadylog(std::string channelname)
+{
+    if(_userchannel.find(channelname) != _userchannel.end())
+        return (true);
+    return (false);
+}
+
+void Client::addChannel(std::string channelname, std::string password)
+{
+    if(_userchannel.find(channelname) == _userchannel.end())
+    {
+        _userchannel[channelname] = new Channel(channelname, password);
+    }
+}
+void Client::rmChannel(std::string channelname)
+{
+    std::map<std::string, Channel *>::iterator it = _userchannel.find(channelname);
+    if(it != _userchannel.end())
+    {
+        delete it->second;
+        _userchannel.erase(it);
+    }
+}
+
+void Client::checkplus()
+{
+    _check++;
+}
+
+int Client::getCheck()
+{
+    return(_check);
 }

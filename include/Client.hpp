@@ -1,31 +1,47 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
+#pragma once
 
 #include "Server.hpp"
+#include "Channel.hpp"
 #include <iostream>
+#include <map>
+
+class Channel;
 
 class Client
 {
     public:
-        int socket_fd;
-        struct sockaddr_in address;
+        Client();
         Client(int fd, struct sockaddr_in addr);
         ~Client();
-        bool const & getRegister();
-        std::string const & getNickname();
-        std::string const & getUsername();
-        std::string const & getPassword();
-        bool setAccount();
-        void setRegister(bool reg);
-        void setNickname(std::string str);
-        void setUsername(std::string str);
-        void setPassword(std::string str);
-        int _check;
+        std::string getPass();
+        std::string getUsername();
+        std::string getNickname();
+        std::string getRealname();
+        Client *getClient();
+        std::map<std::string ,Channel *> getUserChannel();
+        void addChannel(std::string channelname, std::string password);
+        void rmChannel(std::string channelname);
+        bool alreadylog(std::string channelname);
+        int _socket_fd;
+        struct sockaddr_in _address;
+        bool getRegister();
+        void setRegister(bool value);
+        void setPassword(std::string pass);
+        void setNickname(std::string nick);
+        void setUsername(std::string username);
+        void checkplus();
+        int getCheck();
+
     private:
-        bool _register;
-        std::string _nickname;
+        std::string _pass;
         std::string _username;
-        std::string _password;
+        std::string _nickname;
+        std::string _realname;
+        bool        _register;
+        int  _check;
+        std::map<std::string, Channel *> _userchannel;
 };
 
 #endif
