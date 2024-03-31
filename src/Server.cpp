@@ -84,7 +84,6 @@ void Server::serving() {
             } else {
                 std::cout << "New connection from " << inet_ntoa(client.sin_addr) << " on socket " << new_socket << std::endl;
                 _client[new_socket] = new Client(new_socket, client);
-				std::cout << "size MAP : "<< _client.size() << std::endl;
                 FD_SET(new_socket, &rfds);
                 if (new_socket > max_sd)
                     max_sd = new_socket;
@@ -99,22 +98,16 @@ void Server::serving() {
                 if (bytes_received <= 0)
                 {
                     std::cout << "Client on socket " << client_socket << " " << it->second->getUsername() << " disconnected." << std::endl;
-                    close(client_socket);
                     FD_CLR(client_socket, &rfds);
-                    delete it->second;
-                    _client.erase(it);
+					delete it->second;
+					_client.erase(it);
+					it = _client.begin();
+					close(client_socket);
                 }
                 else
                 {
                     buffer[bytes_received] = '\0';
                     std::cout << std::endl;
-					std::string msg(buffer);
-					for (std::map<int, Client*>::iterator it = _client.begin();it != _client.end();it++)
-					{
-						send(it->second->_socket_fd, msg.c_str(), msg.size(), 0);
-						std::cout << "BUFFER = " << buffer << it->second->_socket_fd <<  std::endl;
-					}
-					std::cout << "<<<<" << _client.size() << std::endl;
                     parse(it->second, buffer);
                     std::cout << "Received from client " << client_socket << ": [" << buffer << "]" << std::endl;
                     ++it;
@@ -139,21 +132,15 @@ int	cmdparser(const std::string &str)
 	return (0);
 }
 
-void prvmsg(std::string dest)
-{
-    std::cout << "<<<<<<<<<<" << dest << std::endl; 
-    // for (std::vector<Client>::iterator it = it.begin(); it != it.end();)
-    // {
-    //     if (client->getNickname == dest)
-    //         send(client->socket, msg.c_str(), msg.size(), 0);
-    // }
-}
-
 void Server::exec_cmd(std::string const &command, std::string const &value,
 	Client *client)
 {
 	if (command == "PASS")
 	{
+		if (value != this->getPassword())
+		{
+			std::cout << "BAD PASSWORD" << std::endl;
+		}
 		client->setPassword(value);
 		client->checkplus();
 	}
@@ -203,8 +190,106 @@ void Server::set_id(std::string str, Client *client)
 		i = valueEnd + 2;
 	}
 }
+bool prvmsg_pars(std::string buffer)
+{
+	size_t	i;
+	size_t	cmdStart;
+	size_t	cmdEnd;
+	size_t	valueStart;
+	size_t	valueEnd;
+	// size_t	pass;
+	// size_t	passend;
+
+	i = 0;
+	cmdStart = buffer.find_first_of("PRIVMSG", i);
+	std::string passvalue;
+	if (cmdStart == std::string::npos)
+		return (false);
+	cmdEnd = buffer.find_first_of(" ", cmdStart);
+	if (cmdEnd == std::string::npos)
+		return (false);
+	std::string command = buffer.substr(cmdStart, cmdEnd - cmdStart);
+	std::cout << "<Command>: " << command << std::endl;
+
+	valueStart = buffer.find_first_not_of(" ", cmdEnd);
+	if (valueStart == std::string::npos)
+		return (false);
+	valueEnd = buffer.find_first_of(" \r\n", valueStart);
+	if (valueEnd == std::string::npos)
+		return (false);
+	std::string value = buffer.substr(valueStart, valueEnd - valueStart);
+	std::cout << "<Value>: " << value << std::endl;
+
+
+	// send(value->socket, msg.c_str(), msg.size(), 0);
+	return (true);
+}
 
 bool Server::cmd_pars(Client *client, std::string buffer)
+{
+	size_t	i;
+	size_t	cmdStart;
+	size_t	cmdEnd;
+
+	(void)client;
+	i = 0;
+	cmdStart = buffer.find_first_of("JOIN, KICK, INVITE, TOPIC, MODE", i);
+	std::string passvalue;
+	if (cmdStart == std::string::npos)
+		return (false);
+	cmdEnd = buffer.find_first_of(" ", cmdStart);
+	if (cmdEnd == std::string::npos)
+		return (false);
+	std::string command = buffer.substr(cmdStart, cmdEnd - cmdStart);
+	std::cout << "Command: " << command << std::endl;
+	if (command == "JOIN")
+	{
+		if (join_pars(client, buffer))
+		{
+			std::cout << "WORK" << std::endl;
+			return (true);
+		}
+			return (false);
+	}
+	else if (command == "KICK")
+	{
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "INVITE")
+	{
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "TOPIC")
+	{
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "MODE")
+	{
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "PRIVMSG")
+	{
+		prvmsg_pars(buffer);
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "PING")
+	{
+		ping_pars(client, buffer);
+		// std::cout << "[" << command << "]" << std::endl;
+	}
+	return (false);
+}
+
+bool Server::ping_pars(Client *client, std::string buffer)
+{
+	(void)buffer;
+	std::string pong = ":" + client->getNickname() + "!" + client->getUsername() + "@localhost" +  "PONG irc.example.com \r\n";
+	send(client->_socket_fd, pong.c_str(), pong.size(), 0);
+	std::cout << pong << std::endl;
+	return true;
+}
+
+bool Server::join_pars(Client *client, std::string buffer)
 {
 	size_t	i;
 	size_t	cmdStart;
@@ -243,10 +328,11 @@ bool Server::cmd_pars(Client *client, std::string buffer)
 	}
 	else
 	{
-		std::string badchan = ":irc.example.com 432 : Vous n'êtes pas sur ce canal.\r\n";
+		std::string badchan = ":irc.example.com 432 Vous n'êtes pas sur ce canal.\r\n";
 		send(client->_socket_fd, badchan.c_str(), badchan.size(), 0);
 		std::cout << "Erreur" << std::endl;
 	}
+	std::cout << "value" << value << "password  " << passvalue << std::endl;
 	joinChannel(client, value, passvalue);
 	return (true);
 }
@@ -275,15 +361,10 @@ Client *Server::parse(Client *client, std::string buffer)
 		}
 		else if (client->getRegister())
 		{
-			// std::cout << "BUFFER = " << buffer << std::endl;
-			std::cout << _client.size() << std::endl;
-			for (std::map<int, Client*>::iterator it = _client.begin();it != _client.end();it++)
-			{
-				send(it->second->_socket_fd, buffer.c_str(), buffer.size(), 0);
-				std::cout << "BUFFER = " << buffer << it->second->_socket_fd <<  std::endl;
-			}
+			std::cout << "BUFFER = " << buffer << std::endl;
 			if (cmd_pars(client, buffer))
 			{
+				std::cout << "BUFFER = " << buffer << std::endl;
 			}
 			else
 			{
@@ -322,12 +403,19 @@ Channel *Server::getChannel(std::string channelname)
 
 void Server::joinChannel(Client *client, std::string channelname,std::string password)
 {
+	std::cout << "JOIN CHANNEL   ---" << channelname << "  [" << password << "]" << std::endl;
 	if (client)
 	{
 		if (_channel.find(channelname) == _channel.end())
 		{
             std::cout << "created channel" << std::endl;
 			_channel[channelname] = new Channel(client, channelname, password);
+			_channel[channelname]->addAdmins(client);
+			_channel[channelname]->addClients(client);
+			client->addChannel(channelname, password);
+			std::string goodjoin = ":" + client->getNickname() + "!"
+	            + client->getUsername() + "@localhost JOIN :#" + _channel[channelname]->getName() + "\r\n";
+	            send(client->_socket_fd, goodjoin.c_str(), goodjoin.size(), 0);
 		}
 		else
 		{
@@ -342,7 +430,8 @@ void Server::joinChannel(Client *client, std::string channelname,std::string pas
 	            + client->getUsername() + "@localhost JOIN :#" + _channel[channelname]->getName() + "\r\n";
 	            send(client->_socket_fd, goodjoin.c_str(), goodjoin.size(), 0);
             _channel[channelname]->addClients(client);
-            std::cout << "---------------------" << _channel[channelname]->getNeed() << strcmp(password.c_str(), _channel[channelname]->getPassword().c_str()) << std::endl;
+			client->addChannel(channelname, password);
 		}
 	}
+	_channel[channelname]->print();
 }

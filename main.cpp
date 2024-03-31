@@ -18,7 +18,7 @@
 //     if (argc != 2) {
 //         std::cerr << "Usage: port" << std::endl;
 //         exit(0);
-//     } /connect 127.0.0.1 2001 /NICK mouss
+//     }
 //     int port = atoi(argv[1]);
 //     Server server(port);
 //     server.startListen();

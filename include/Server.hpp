@@ -46,7 +46,8 @@ class Server {
         bool cmd_pars(Client *client,std::string buffer);
         void joinChannel(Client *client, std::string channelname, std::string password);
 
-
+        bool join_pars(Client *client,std::string buffer);
+        bool ping_pars(Client *client, std::string buffer);
     private:
         std::string _password;
         int _socket;

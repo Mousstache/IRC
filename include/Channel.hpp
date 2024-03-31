@@ -19,6 +19,7 @@ class Channel {
         void        addAdmins(Client *admins);
         void        rmClients(std::string clientname);
         void        rmAdmins(std::string adminname);
+        void        print();
 
     private:
         std::string _name;

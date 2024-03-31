@@ -63,3 +63,19 @@ void       Channel::rmAdmins(std::string adminname)
         _admins.erase(it);
     }
 }
+
+void Channel::print() {
+    std::cout << "Nom du canal: " << _name << std::endl;
+    std::cout << "Mot de passe: " << (_needpass ? _password : "Pas de mot de passe") << std::endl;
+    std::cout << "Clients: ";
+    std::map<std::string, Client *>::iterator it;
+    for (it = _clients.begin(); it != _clients.end(); ++it) {
+        std::cout << it->first << " ";
+    }
+    std::cout << std::endl;
+    std::cout << "Admins: ";
+    for (it = _admins.begin(); it != _admins.end(); ++it) {
+        std::cout << it->first << " ";
+    }
+    std::cout << std::endl;
+}
