@@ -1,4 +1,5 @@
 #include "Server.hpp"
+#include "Channel.hpp"
 
 void Server::exitWithError(std::string errorMessage)
 {
@@ -197,6 +198,12 @@ bool prvmsg_pars(std::string buffer)
 	size_t	cmdEnd;
 	size_t	valueStart;
 	size_t	valueEnd;
+	std::istringstream iss(buffer);
+
+	std::string msg;
+
+	iss >> msg;
+	std::cout << "LE MESSAGE" << msg << std::endl;
 	// size_t	pass;
 	// size_t	passend;
 
@@ -225,6 +232,66 @@ bool prvmsg_pars(std::string buffer)
 	return (true);
 }
 
+bool Server::topic(std::string buffer)
+{
+    std::string    str[3];
+    std::stringstream    lf(buffer);
+    char    c;
+
+    std::getline(lf, str[0], ' ');
+    if (str[0] != "TOPIC")
+        return (false);
+    while (lf.get(c))
+    {
+        if (c == '#')
+            break ;
+    }
+    // while (lf.get(c))
+    // {
+    //     if (!std::isspace(c))
+    //     {
+    //         lf.putback(c);
+    //         break ;
+    //     }
+    // }
+    std::getline(lf, str[1], ' ');
+    if (str[1].empty())
+        return (false);
+	else
+		std::cout << "<<<<<<<<<<<< str 1" << str[1] << std::endl;
+	while (lf.get(c))
+    {
+		std::cout << "c" << c << std::endl;
+        if (c == ':')
+            break ;
+    }
+    std::getline(lf, str[2], ' ');
+    if (str[2].empty())
+        return (false);
+    // while (lf.get(c))
+    // {
+    //     if (!std::isspace(c) && c != '\0')
+    //         return (false);
+    // }
+	else
+		std::cout << "<<<<<<<<<<<< str 2" << str[2] << std::endl;
+    // invite_exec(client, str[1], str[2]);
+    // return (true);
+// }
+	// std::istringstream iss(buffer);
+    // std::string word;
+    // iss >> word;
+    // iss >> word;
+	if (_channel.find(str[1]) != _channel.end())
+	{
+		_channel[str[1]]->setTopic(str[2]);
+		std::cout << "le topic :" << _channel[str[1]]->getTopic() << std::endl;
+	}
+	else
+		std::cout << "channel not found" << std::endl;
+	return (true);
+}
+
 bool Server::cmd_pars(Client *client, std::string buffer)
 {
 	size_t	i;
@@ -233,7 +300,7 @@ bool Server::cmd_pars(Client *client, std::string buffer)
 
 	(void)client;
 	i = 0;
-	cmdStart = buffer.find_first_of("JOIN, KICK, INVITE, TOPIC, MODE", i);
+	cmdStart = buffer.find_first_of("JOIN, KICK, INVITE, TOPIC, MODE, PRIVMSG", i);
 	std::string passvalue;
 	if (cmdStart == std::string::npos)
 		return (false);
@@ -261,6 +328,7 @@ bool Server::cmd_pars(Client *client, std::string buffer)
 	}
 	else if (command == "TOPIC")
 	{
+		topic(buffer);
 		std::cout << "[" << command << "]" << std::endl;
 	}
 	else if (command == "MODE")

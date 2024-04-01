@@ -48,6 +48,9 @@ class Server {
 
         bool join_pars(Client *client,std::string buffer);
         bool ping_pars(Client *client, std::string buffer);
+
+        bool topic(std::string buffer);
+
     private:
         std::string _password;
         int _socket;
