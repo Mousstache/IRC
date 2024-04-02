@@ -246,14 +246,6 @@ bool Server::topic(std::string buffer)
         if (c == '#')
             break ;
     }
-    // while (lf.get(c))
-    // {
-    //     if (!std::isspace(c))
-    //     {
-    //         lf.putback(c);
-    //         break ;
-    //     }
-    // }
     std::getline(lf, str[1], ' ');
     if (str[1].empty())
         return (false);
@@ -263,11 +255,29 @@ bool Server::topic(std::string buffer)
     {
 		std::cout << "c" << c << std::endl;
         if (c == ':')
+		{
+			lf.get(c);
+			if (c != ':')
+				lf.putback(c);
+			else
+				return (false);
             break ;
+		}
+    }
+    while (lf.get(c))
+    {
+        if (!std::isspace(c))
+        {
+            lf.putback(c);
+            break ;
+        }
     }
     std::getline(lf, str[2], ' ');
     if (str[2].empty())
+	{
+		std::cout << "bonhomme" << std::endl;
         return (false);
+	}
     // while (lf.get(c))
     // {
     //     if (!std::isspace(c) && c != '\0')
@@ -277,7 +287,6 @@ bool Server::topic(std::string buffer)
 		std::cout << "<<<<<<<<<<<< str 2" << str[2] << std::endl;
     // invite_exec(client, str[1], str[2]);
     // return (true);
-// }
 	// std::istringstream iss(buffer);
     // std::string word;
     // iss >> word;
@@ -292,6 +301,94 @@ bool Server::topic(std::string buffer)
 	return (true);
 }
 
+bool Server::priv_msg(Client *client, std::string buffer)
+{
+	 std::string    str[3];
+    std::stringstream    lf(buffer);
+    char    c;
+
+    std::getline(lf, str[0], ' ');
+    if (str[0] != "PRIVMSG")
+        return (false);
+    // while (lf.get(c))
+    // {
+    //     if (c == '#')
+    //         break ;
+    // }
+	// std::cout << "<<<<<<<<<<<< str 1 : " << std::endl;
+    std::getline(lf, str[1], ' ');
+    if (str[1].empty())
+        return (false);
+	else
+		std::cout << "<<<<<<<<<<<< str 1 : " << str[1] << std::endl;
+	while (lf.get(c))
+    {
+		std::cout << "c" << c << std::endl;
+        if (c == ':')
+		{
+			lf.get(c);
+			if (c != ':')
+				lf.putback(c);
+			else
+				return (false);
+            break ;
+		}
+    }
+    while (lf.get(c))
+    {
+        if (!std::isspace(c))
+        {
+            lf.putback(c);
+            break ;
+        }
+    }
+    std::getline(lf, str[2], ' ');
+    if (str[2].empty())
+	{
+		std::cout << "bonhomme" << std::endl;
+        return (false);
+	}
+	std::cout << "<<<<<<<<<<<< str 2 : " << str[2] << std::endl;
+	(void)client;
+	std::string to_send;
+	for (std::map<int, Client *>::iterator it = _client.begin(); it != _client.end(); it++)
+       {
+           if (it->second->getNickname() == str[1])
+           {
+				to_send = RPL_PRIVMSG_CLIENT(client->getNickname(), client->getUsername(), client->getRealname(), str[2].c_str());
+				send(client->getSocket(), to_send.c_str(), to_send.size(), 0); 	
+               return (false);
+           }
+       }
+	return (true);
+}
+
+bool Server::part_pars(Client *client, std::string buffer)
+{
+	std::string    str[2];
+    std::stringstream    lf(buffer);
+    char    c;
+
+    std::getline(lf, str[0], ' ');
+    if (str[0] != "PART")
+        return (false);
+    while (lf.get(c))
+    {
+        if (c == '#')
+            break ;
+    }
+    std::getline(lf, str[1], ' ');
+    if (str[1].empty())
+        return (false);
+	else
+		std::cout << "<<<<<<<<<<<< str 1" << str[1] << std::endl;
+	if (_channel.find(str[1]) != _channel.end())
+		client->rmChannel(_channel[str[1]]->getName());
+	else
+		std::cout << "channel not found" << std::endl;
+	return (true);
+}
+
 bool Server::cmd_pars(Client *client, std::string buffer)
 {
 	size_t	i;
@@ -300,7 +397,7 @@ bool Server::cmd_pars(Client *client, std::string buffer)
 
 	(void)client;
 	i = 0;
-	cmdStart = buffer.find_first_of("JOIN, KICK, INVITE, TOPIC, MODE, PRIVMSG", i);
+	cmdStart = buffer.find_first_of("JOIN, KICK, INVITE, TOPIC, MODE, PRIVMSG, PART", i);
 	std::string passvalue;
 	if (cmdStart == std::string::npos)
 		return (false);
@@ -320,6 +417,11 @@ bool Server::cmd_pars(Client *client, std::string buffer)
 	}
 	else if (command == "KICK")
 	{
+		std::cout << "[" << command << "]" << std::endl;
+	}
+	else if (command == "PART")
+	{
+		part_pars(client, buffer);
 		std::cout << "[" << command << "]" << std::endl;
 	}
 	else if (command == "INVITE")
