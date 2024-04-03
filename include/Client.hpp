@@ -19,20 +19,21 @@ class Client
         std::string getUsername();
         std::string getNickname();
         std::string getRealname();
+        int getSocket();
         Client *getClient();
         std::map<std::string ,Channel *> getUserChannel();
         void addChannel(std::string channelname, std::string password);
         void rmChannel(std::string channelname);
         bool alreadylog(std::string channelname);
-        int _socket_fd;
-        struct sockaddr_in _address;
         bool getRegister();
         void setRegister(bool value);
         void setPassword(std::string pass);
         void setNickname(std::string nick);
         void setUsername(std::string username);
+        struct sockaddr_in _address;
         void checkplus();
         int getCheck();
+        int _socket_fd;
 
     private:
         std::string _pass;
@@ -41,7 +42,7 @@ class Client
         std::string _realname;
         bool        _register;
         int  _check;
-        std::map<std::string, Channel *> _userchannel;
+        // std::map<std::string, Channel *> _userchannel;
 };
 
 #endif

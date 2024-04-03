@@ -21,14 +21,13 @@ EXEC = $(NAME)
 -include $(INCLUDE_DIR)/*.mk
 
 all: $(NAME)
-	@echo "Compilation terminée."
 
 $(NAME): $(OBJS)
-	@$(COMPILE) $(LDFLAGS) $^ $(LDLIBS) $(EXE_NAME)
+	$(COMPILE) $(LDFLAGS) $^ $(LDLIBS) $(EXE_NAME)
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	@$(COMPILE) $(CXXFLAGS) -c $< -o $@
+	$(COMPILE) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJ_DIR)
