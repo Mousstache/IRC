@@ -7,6 +7,16 @@ SRC = main.cpp \
       src/Client.cpp  \
       src/Server.cpp  \
       src/Channel.cpp \
+	  src/Kick.cpp \
+	  src/Mode.cpp \
+	  src/Topic.cpp \
+	  src/Join.cpp \
+	  src/Privmsg.cpp \
+	  src/Bot.cpp \
+	  src/Files.cpp \
+	  src/Message.cpp \
+	  src/Invite.cpp
+
 
 OBJS = $(addprefix $(OBJ_DIR)/, $(SRC:.cpp=.o))
 
@@ -21,13 +31,14 @@ EXEC = $(NAME)
 -include $(INCLUDE_DIR)/*.mk
 
 all: $(NAME)
+	@echo "Compilation terminée."
 
 $(NAME): $(OBJS)
-	$(COMPILE) $(LDFLAGS) $^ $(LDLIBS) $(EXE_NAME)
+	@$(COMPILE) $(LDFLAGS) $^ $(LDLIBS) $(EXE_NAME)
 
 $(OBJ_DIR)/%.o: %.cpp
 	@mkdir -p $(dir $@)
-	$(COMPILE) $(CXXFLAGS) -c $< -o $@
+	@$(COMPILE) $(CXXFLAGS) -c $< -o $@
 
 clean:
 	rm -rf $(OBJ_DIR)

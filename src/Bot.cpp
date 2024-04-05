@@ -2,6 +2,7 @@
 
 Bot::Bot(Channel *channel)
 {
+    (void)channel;
 }
 Bot::~Bot()
 {

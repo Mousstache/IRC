@@ -24,13 +24,6 @@ Channel::Channel(Client *client, std::string channelname, std::string password)
     _admins[client->getUsername()] = client;
 }
 
-bool Channel::clientExist(std::string name)
-{
-    if(_clients.find(name) != _clients.end())
-        return (true);
-    return (false);
-}
-
 Channel::Channel(std::string channelname, std::string password)
 {
     _name = channelname;
@@ -45,15 +38,26 @@ std::string Channel::getPassword()
 {
     return(_password);
 }
+
+std::string Channel::getTopic()
+{
+    return (_topic);
+}
+
+void    Channel::setTopic(const std::string &newTopic)
+{
+    _topic = newTopic;
+}
+
 bool       Channel::getNeed()
 {
     return(_needpass);
 }
 void       Channel::addClients(Client *clients)
 {
-    if(_clients.find(clients->getUsername()) == _clients.end())
+    if(_clients.find(clients->getNickname()) == _clients.end())
     {
-        _clients[clients->getUsername()] = clients;
+        _clients[clients->getNickname()] = clients;
     }
 }
 
@@ -69,6 +73,7 @@ void       Channel::rmClients(std::string clientname)
     std::map<std::string , Client *>::iterator it = _clients.find(clientname);
     if (it != _clients.end())
     {
+        delete it->second;
         _clients.erase(it);
     }
 }
@@ -77,18 +82,20 @@ void       Channel::rmAdmins(std::string adminname)
     std::map<std::string , Client *>::iterator it = _admins.find(adminname);
     if (it != _admins.end())
     {
+        delete it->second;
         _admins.erase(it);
     }
 }
 
 void Channel::chanmsg(std::string msg)
 {
-    std::cout << _clients.size() << std::endl;
+    std::cout << "taille du chan chanmsg : " << _clients.size() << std::endl;
+    std::string to_send;
     for (std::map<std::string, Client*>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
         Client* client = it->second;
-        std::cout << "cooooool" << msg << std::endl;
-        int clientSocket = client->getSocket(); // Obtenez le socket du client
-        // Envoyez le message au client
+        int clientSocket = client->getSocket();
+		to_send = RPL_PRIVMSG_CHANNEL(client->getNickname(), this->getName(), msg.c_str());
+        std::cout << "le message : " << to_send << std::endl; 
         send(clientSocket, msg.c_str(), msg.size(), 0);
     }
 }

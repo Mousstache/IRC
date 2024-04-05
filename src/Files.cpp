@@ -11,9 +11,14 @@ void sendFile(int clientSocket, const char* filename) {
         std::cerr << "Erreur lors de l'ouverture du fichier: " << filename << std::endl;
         return;
     }
+
     std::streamsize size = file.tellg();
     file.seekg(0, std::ios::beg);
+
+    // Envoyer la taille du fichier
     send(clientSocket, reinterpret_cast<char*>(&size), sizeof(size), 0);
+
+    // Envoyer le contenu du fichier
     char buffer[1024];
     while (file.read(buffer, sizeof(buffer))) {
         send(clientSocket, buffer, file.gcount(), 0);
