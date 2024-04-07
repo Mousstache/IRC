@@ -6,7 +6,7 @@
 /*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:14:22 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/05 18:49:39 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/07 19:48:58 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,23 @@ void	Server::privmsg_pars(Client *client, std::string buffer)
 	std::string	msg = buffer.substr(msgStart, msgEnd - msgStart);
 	privmsg_exec(client, user, msg);
 }
+
+// void	Server::privmsg_exec(Client *client, std::string user, std::string msg)
+// {
+// 	(void)client;
+// 	Client	*tmp = NULL;
+// 	std::map<int, Client *>::iterator it = _client.begin();
+
+// 	for (it = _client.begin(); it != _client.end(); it++)
+// 	{
+// 		tmp = it->second;
+// 		if (tmp->getNickname() == user)
+// 			break ;
+// 	}
+// 	if (it == _client.end())
+// 		throw std::string("PRIVMSG: user does not exist !");
+// 	send(tmp->getSocket(), msg.c_str(), msg.size(), 0);
+// }
 
 void	Server::privmsg_exec(Client *client, std::string user, std::string msg)
 {

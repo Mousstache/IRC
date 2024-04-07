@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Topic.cpp                                          :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mvachera <mvachera@student.42.fr>          +#+  +:+       +#+        */
+/*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:14:54 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/04 20:37:49 by mvachera         ###   ########.fr       */
+/*   Updated: 2024/04/07 19:46:28 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -58,11 +58,27 @@ void	Server::topic_exec(Client *client, std::string channel, std::string newTopi
 	std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
 
 	if (it1 == admins.end() && it2 == clients.end())
+	{
+		std::string err = ERR_NOTONCHANNEL(client->getNickname(), channel);
+		send(client->getSocket(), err.c_str(), err.size(),0);
 		throw std::string("TOPIC: Client not in the channel !");
+	}
 	if (newTopic.empty() && tmp->getTopic().empty())
+	{
+		std::string err = RPL_NOTOPIC(client->getNickname(), channel);
+		send(client->getSocket(), err.c_str(), err.size(),0);
 		throw std::string("TOPIC: Channel does not have a topic yet !");
+	}
 	if (newTopic.empty())
+	{
+		std::string err = RPL_TOPIC(client->getNickname(), channel, newTopic);
+		send(client->getSocket(), err.c_str(), err.size(),0);
 		send(client->getSocket(), tmp->getTopic().c_str(), tmp->getTopic().size(), 0);
+	}
 	else
+	{
 		tmp->setTopic(newTopic);
+		std::string err = RPL_TOPIC(client->getNickname(), channel, newTopic);
+		send(client->getSocket(), err.c_str(), err.size(),0);
+	}
 }

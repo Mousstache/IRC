@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mvachera <mvachera@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:21:41 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/05 18:43:22 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/05 17:33:35 by mvachera         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -274,6 +274,8 @@ int	Server::which_command(std::string cmd)
 		return (4);
 	if (cmd == "MODE")
 		return (5);
+	if (cmd == "PART")
+		return (6);
 	return (-1);
 }
 
@@ -303,6 +305,9 @@ void	Server::cmd_pars(Client *client, std::string buffer)
 				break;
 			case 5:
 				mode_pars(client, buffer);
+				break;
+			case 6:
+				part_pars(client, buffer);
 				break;
 			default :
 				throw std::string("Command does not exist");

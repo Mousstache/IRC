@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Join.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
+/*   By: mvachera <mvachera@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:18:53 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/05 19:42:28 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/03 20:21:16 by mvachera         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -89,7 +89,6 @@ bool Server::joinChannel(Client *client, std::string channelname,std::string pas
                 send(client->_socket_fd, error_passwd.c_str(), error_passwd.size(), 0);
 				return false;
 			}
-				if()
 				std::string goodjoin = ":" + client->getNickname() + "!"
 	            + client->getUsername() + "@localhost JOIN :#" + _channel[channelname]->getName() + "\r\n";
 	            send(client->_socket_fd, goodjoin.c_str(), goodjoin.size(), 0);

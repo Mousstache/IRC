@@ -6,7 +6,7 @@
 /*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:19:51 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/05 19:18:40 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/07 19:48:33 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,45 @@ void	Server::invite_pars(Client *client, std::string buffer)
 	invite_exec(client, user, channel);
 }
 
+// void	Server::invite_exec(Client *client, std::string user, std::string channel)
+// {
+// 	Channel	*tmp = NULL;
+// 	Client	*tmp2 = NULL;
+
+// 	if (_channel.find(channel) != _channel.end())
+// 		tmp = _channel[channel];
+// 	std::map<int, Client *>::iterator it = _client.begin();
+// 	while(it != _client.end())
+// 	{
+// 		if (it->second->getUsername() == user)
+// 		{
+// 			tmp2 = it->second;
+// 			break;
+// 		}
+// 		it++;
+// 	}
+
+// 	if (tmp == NULL)
+// 		throw std::string("INVITE: Channel does not exist !");
+// 	if (tmp->getInvitation() == false)
+// 		throw std::string("INVITE: This channel don't need invitation !");
+// 	if (tmp2 == NULL)
+// 		throw std::string("INVITE: User does not exist !");
+
+// 	std::map<std::string, Client *> admins = tmp->getAdmins();
+// 	std::map<std::string, Client *> clients = tmp->getClients();
+// 	std::map<std::string, Client *>::iterator it1 = admins.find(client->getNickname());
+// 	std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
+// 	std::map<std::string, Client *>::iterator it3 = admins.find(user);
+// 	std::map<std::string, Client *>::iterator it4 = clients.find(user);
+
+// 	if (it1 == admins.end() && it2 == clients.end())
+// 		throw std::string("INVITE: Client not in the channel !");
+// 	if (it3 != admins.end() || it4 != clients.end())
+// 		throw std::string("INVITE: User already in the channel !");
+// 	// send the invitation to the user
+// }
+
 void	Server::invite_exec(Client *client, std::string user, std::string channel)
 {
 	Channel	*tmp = NULL;
@@ -53,8 +92,8 @@ void	Server::invite_exec(Client *client, std::string user, std::string channel)
 	std::map<int, Client *>::iterator it = _client.begin();
 	while(it != _client.end())
 	{
-		std::cout << "mec qu'on invite : " << it->second->getUsername() << std::endl;
-		if (it->second->getUsername() == user)
+		std::cout << "mec qu'on invite : " << it->second->getNickname() << std::endl;
+		if (it->second->getNickname() == user)
 		{
 			tmp2 = it->second;
 		}
@@ -62,27 +101,37 @@ void	Server::invite_exec(Client *client, std::string user, std::string channel)
 	}
 
 	if (tmp == NULL)
+	{
+		std::string err = ERR_NOSUCHCHANNEL(client->getNickname(), channel);
+		send(client->getSocket(), err.c_str(), err.size(),0);
 		throw std::string("INVITE: Channel does not exist !");
+	}
 	if (tmp2 == NULL)
+	{
 		throw std::string("INVITE: User does not exist !");
+	}
 
 	std::map<std::string, Client *> admins = tmp->getAdmins();
 	std::map<std::string, Client *> clients = tmp->getClients();
 	// std::map<std::string, Client *>::iterator it1 = admins.find(client->getNickname());
 	// std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
-	// std::map<std::string, Client *>::iterator it3 = admins.find(user);
-	// std::map<std::string, Client *>::iterator it4 = clients.find(user);
+	std::map<std::string, Client *>::iterator it3 = admins.find(user);
+	std::map<std::string, Client *>::iterator it4 = clients.find(user);
 
 	// if (it1 == admins.end() && it2 == clients.end())
 	// 	throw std::string("INVITE: Client not in the channel !");
-	// if (it3 != admins.end() || it4 != clients.end())
-	// 	throw std::string("INVITE: User already in the channel !");
-
+	if (it3 != admins.end() || it4 != clients.end())
+	{
+		std::string err = ERR_USERONCHANNEL(client->getNickname(), channel);
+		send(client->getSocket(), err.c_str(), err.size(),0);
+		throw std::string("INVITE: User already in the channel !");
+	}
 	// send the invitation to the user
 	
 	std::string msg = RPL_INVITING(client->getNickname(), user, channel);
-    std::string msg2 = INVITE_CLIENT(client->getNickname(), client->getUsername(), "INVITE", user, channel);
+    std::string msg2 = INVITE_CLIENT(client->getNickname(), client->getUsername(), "INVITE ", user, channel);
     send(client->getSocket(), msg.c_str(), msg.size(), 0);
+	std::cout << "to send >> " << msg2 << std::endl;
     send(tmp2->getSocket(), msg2.c_str(), msg2.size(), 0);
 	// std::string invite = RPL_INVITING(it1, it2, it3);
 	// send(clients, invite, tmp, 0);
