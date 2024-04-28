@@ -14,9 +14,8 @@ SRC = main.cpp \
 	  src/Privmsg.cpp \
 	  src/Bot.cpp \
 	  src/Files.cpp \
-	  src/Message.cpp \
 	  src/Invite.cpp \
-	  src/Part.cpp
+	  src/Nick.cpp
 
 
 OBJS = $(addprefix $(OBJ_DIR)/, $(SRC:.cpp=.o))

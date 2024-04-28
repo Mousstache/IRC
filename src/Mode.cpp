@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Mode.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mvachera <mvachera@student.42.fr>          +#+  +:+       +#+        */
+/*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:19:28 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/07 19:30:55 by mvachera         ###   ########.fr       */
+/*   Updated: 2024/04/28 20:10:09 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,26 +37,26 @@ void	Server::mode_pars(Client *client, std::string buffer)
 	if (modeEnd == std::string::npos)
 		throw std::string("Mode: /MODE #name_of_the_channel (+ or -)option");
 	std::string mode = buffer.substr(modeStart, modeEnd - modeStart);
-	std::string	name;
+	std::vector<std::string> arg;
 	size_t nameStart = buffer.find_first_not_of(" \t\r\n", modeEnd);
 	if (nameStart != std::string::npos)
 	{
-		size_t nameEnd = buffer.find_first_of(" \t\r\n", modeEnd);
-		if (nameEnd == std::string::npos)
-			throw std::string("Mode: /MODE #name_of_the_channel (+ or -)option");
-		name = buffer.substr(nameStart, nameEnd - nameStart);
-		size_t checkRest = buffer.find_first_not_of(" \t\r\n", modeEnd);
-		if (checkRest != std::string::npos)
-			throw std::string("Mode: /MODE #name_of_the_channel (+ or -)option");
+		while (1)
+		{
+			size_t nameEnd = buffer.find_first_of(" \t\r\n", nameStart);
+			if (nameEnd == std::string::npos)
+				throw std::string("Mode: /MODE #name_of_the_channel (+ or -)option");
+			std::string name = buffer.substr(nameStart, nameEnd - nameStart);
+			arg.push_back(name);
+			nameStart = buffer.find_first_not_of(" \t\r\n", nameEnd);
+			if (nameStart == std::string::npos)
+				break ;
+		}
 	}
-	if (mode.size() != 2)
-		throw std::string("MODE: option doesn't exist");
-	if (!name.empty() && (mode[1] != 'o' || mode != "+l"))
-		throw std::string("MODE: this option don't need a fourth argument");
-	mode_exec(client, channel, mode, name);
+	mode_exec(client, channel, mode, arg);
 }
 
-void	Server::mode_exec(Client *client, std::string channel, std::string mode, std::string name)
+void	Server::mode_exec(Client *client, std::string channel, std::string mode, std::vector<std::string> arg)
 {
 	Channel	*tmp = NULL;
 
@@ -71,106 +71,190 @@ void	Server::mode_exec(Client *client, std::string channel, std::string mode, st
 	std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
 
 	if (it1 == admins.end() && it2 == clients.end())
-		throw std::string("INVITE: Client not in the channel !");
+		throw std::string("MODE: Client not in the channel !");
 	if (it1 == admins.end())
-		throw std::string("INVITE: Client not an admin !");
-	mode_option(client, mode, name, tmp);
+	{
+		std::string err = ERR_CHANOPRIVSNEED(client->getNickname(), channel);
+		send(client->getSocket(), err.c_str(), err.size(),0);
+		throw std::string("MODE: Client not an admin !");
+	}
+	mode_option(client, mode, arg, tmp);
 }
 
-int	Server::check_option(const std::string &mode)
+int	Server::check_option(char option)
 {
-	if (mode[1] == 'i')
+	if (option == 'i')
 		return (0);
-	if (mode[1] == 't')
+	if (option == 't')
 		return (1);
-	if (mode[1] == 'k')
+	if (option == 'k')
 		return (2);
-	if (mode[1] == 'o')
+	if (option == 'o')
 		return (3);
-	if (mode[1] == 'l')
+	if (option == 'l')
 		return (4);
+	if (option == '+')
+		return (5);
+	if (option == '-')
+		return (6);
 	return (-1);
 }
 
-void	Server::mode_option(Client *client, std::string mode, std::string name, Channel *canal)
+void	Server::mode_option(Client *client, std::string mode, std::vector<std::string> arg, Channel *canal)
 {
-	(void)client;
-	switch (check_option(mode)) {
-		case 0:
-			i_mode(mode, canal);
-			break;
-		case 1:
-			t_mode(mode, canal);
-			break;
-		case 2:
-			k_mode(mode, canal);
-			break;
-		case 3:
-			o_mode(mode, canal, name);
-			break;
-		case 4:
-			l_mode(mode, canal, name);
-			break;
-		default :
-			throw std::string("MODE: this option doesn't exist");
+	int flag = 0;
+	size_t	j = 0;
+
+	for (size_t i = 0; i < mode.length(); i++)
+	{
+		switch (check_option(mode[i])) {
+			case 0:
+				i_mode(flag, canal, client);
+				break;
+			case 1:
+				t_mode(flag, canal, client);
+				break;
+			case 2:
+				if (flag == 0)
+					k_mode2(canal, client);
+				else if (j < arg.size())
+				{
+					k_mode(canal, arg[j], client);
+					j++;
+				}
+				break;
+			case 3:
+				if (j < arg.size())
+					o_mode(flag, canal, arg[j], client);
+				j++;
+				break;
+			case 4:
+				if (flag == 0)
+					l_mode2(canal, client);
+				else if (j < arg.size())
+				{
+					l_mode(canal, arg[j], client);
+					j++;
+				}
+				break;
+			case 5:
+				flag = 1;
+				break;
+			case 6:
+				flag = 0;
+				break;
+			default :
+				break;
+		}
 	}
+	arg.clear();
 }
 
-void	Server::i_mode(std::string mode, Channel *canal)
+void	Server::i_mode(int flag, Channel *canal, Client* client)
 {
-	if (mode[0] == '+')
+	if (flag == 1)
+	{
+		std::string mod = SET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "i");
+		canal->chanmsg(mod, "");
 		canal->setInvitation(true);
+	}
 	else
+	{
+		std::string mod = UNSET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "i");
+		canal->chanmsg(mod, "");
 		canal->setInvitation(false);
+	}
 }
 
-void	Server::t_mode(std::string mode, Channel *canal)
+void	Server::t_mode(int flag, Channel *canal, Client* client)
 {
-	if (mode[0] == '+')
+	if (flag == 1)
+	{
+		std::string mod = SET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "t");
+		canal->chanmsg(mod, "");
 		canal->setAdmintopic(true);
+	}
 	else
+	{
+		std::string mod = UNSET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "t");
+		canal->chanmsg(mod, "");
 		canal->setAdmintopic(false);
-}
-
-void	Server::k_mode(std::string mode, Channel *canal)
-{
-	if (mode[0] == '+')
-		canal->setPass(true);
-	else
-		canal->setPass(false);
-}
-
-void	Server::o_mode(std::string mode, Channel *canal, std::string name)
-{
-	Client	*user;
-	std::map<std::string, Client *> admins = canal->getAdmins();
-	std::map<std::string, Client *> clients = canal->getClients();
-	std::map<std::string, Client *>::iterator it1 = admins.find(name);
-	std::map<std::string, Client *>::iterator it2 = clients.find(name);
-	user = it2->second;
-	if (mode[0] == '+')
-	{
-		if (it1 == admins.end())
-			admins[user->getNickname()] = user;
-	}
-	else
-	{
-		if (it1 != admins.end())
-			admins.erase(admins.find(name));
 	}
 }
 
-void	Server::l_mode(std::string mode, Channel *canal, std::string name)
+void	Server::k_mode(Channel *canal, std::string name, Client *client)
 {
-	if (mode[0] == '+')
-	{
-		if (name.empty())
-			throw std::string("MODE: you need to specify the limit of user for this channel !");
-		int limitusers = atoi(name.c_str());
-		if (limitusers == 0)
-			throw std::string("MODE : wrong limit of users number !");
-		canal->setLimituser(true, limitusers);
-	}
-	else
-		canal->setLimituser(false, 0);
+	std::string mod = SET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "k");
+	canal->chanmsg(mod, "");
+	canal->setPass(true);
+	if (!name.empty())
+		canal->setPassword(name);
+	std::cout << "Channel password: !" << canal->getPassword() << "!" << std::endl;
+}
+
+void	Server::k_mode2(Channel *canal, Client *client)
+{
+	std::string mod = UNSET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "k");
+	canal->chanmsg(mod, "");
+	canal->setPass(false);
+}
+
+void    Server::o_mode(int flag, Channel *canal, std::string name, Client *client)
+{
+    std::map<std::string, Client *> admins = canal->getAdmins();
+    std::map<std::string, Client *> clients = canal->getClients();
+    std::map<std::string, Client *>::iterator it1 = admins.find(name);
+    std::map<std::string, Client *>::iterator it2 = clients.find(name);
+
+    if (flag == 1)
+    {
+		Client    *user = canal->getIencli(name);
+
+        if (it1 != admins.end())
+			return ;
+            // throw std::string("MODE: User already an admin !");
+        if (it2 == clients.end())
+			return ;
+            // throw std::string("MODE: User not in the channel !");
+        else
+		{
+			std::string mod = SET_NEWOPER(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "o", user->getNickname());
+			canal->chanmsg(mod, "");
+            canal->addAdmins(user);
+		}
+    }
+    else
+    {
+		Client    *user = canal->getIencli(name);
+        if (it2 == clients.end())
+			return ;
+            // throw std::string("MODE: User not in the channel !");
+        if (it1 == admins.end())
+			return ;
+            // throw std::string("MODE: User already not an admin !");
+		std::string mod = UNSET_OPER(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "o", user->getNickname());
+		canal->chanmsg(mod, "");
+        canal->rmAdmins(name);
+    }
+}
+
+void	Server::l_mode(Channel *canal, std::string name, Client *client)
+{
+	if (name.empty())
+		return ;
+		// throw std::string("MODE: you need to specify the limit of user for this channel !");
+	int limitusers = atoi(name.c_str());
+	if (limitusers == 0)
+		return ;
+		// throw std::string("MODE : wrong limit of users number !");
+	std::string mod = SET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "l");
+	canal->chanmsg(mod, "");
+	canal->setLimituser(true, limitusers);
+}
+
+void	Server::l_mode2(Channel *canal, Client *client)
+{
+	std::string mod = UNSET_channel_MODE(client->getNickname(), client->getUsername(), "MODE", canal->getName(), "l");
+	canal->chanmsg(mod, "");
+	canal->setLimituser(false, 0);
 }

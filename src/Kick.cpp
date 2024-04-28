@@ -6,7 +6,7 @@
 /*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:20:50 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/07 19:48:09 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/27 19:24:10 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -38,109 +38,66 @@ void Server::kick_pars(Client *client, std::string buffer)
 		throw std::string("KICK: /KICK #name_of_the_channel user reason <-(optional)");
 	std::string user = buffer.substr(userStart, userEnd - userStart);
 	std::string reason;
-	size_t reasonStart = buffer.find_first_not_of(" \t\r\n", userEnd);
+	size_t reasonStart = buffer.find_first_of(":", userEnd);
 	if (reasonStart != std::string::npos)
 	{
-		size_t reasonEnd = buffer.size();
-		while (reasonEnd > 0 && (buffer[reasonEnd] == ' ' ||  buffer[reasonEnd] == '\t'
-			|| buffer[reasonEnd] == '\r' || buffer[reasonEnd] == '\n'))
-			reasonEnd--;
+		reasonStart++;
+		size_t reasonEnd = buffer.find_first_of("\r\n", reasonStart);
+		if (reasonEnd == std::string::npos)
+			throw std::string("KICK: /KICK #name_of_the_channel user reason <-(optional)");
 		reason = buffer.substr(reasonStart, reasonEnd - reasonStart);
 	}
 	kick_exec(client, channel, user, reason);
 }
 
-// void Server::kick_exec(Client *client, std::string channel, std::string name, std::string reason)
-// {
-// 	Channel	*tmp = NULL;
-// 	if (_channel.find(channel) != _channel.end())
-// 		tmp = _channel[channel];
-// 	std::map<std::string, Client *> admins = tmp->getAdmins();
-// 	std::map<std::string, Client *> clients = tmp->getClients();
-// 	std::map<std::string, Client *>::iterator it1 = admins.find(client->getNickname());
-// 	std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
-// 	std::map<std::string, Client *>::iterator it3 = admins.find(name);
-// 	std::map<std::string, Client *>::iterator it4 = clients.find(name);
-
-// 	if (tmp == NULL)
-// 		throw std::string("KICK: Channel does not exist !");
-// 	if (it1 == tmp->getAdmins().end() && it2 == tmp->getClients().end())
-// 		throw std::string("KICK: Client is not in the channel !");
-// 	if (it1 == tmp->getAdmins().end())
-// 		throw std::string("KICK: Client cannot kick user if not admin !");
-// 	if (it3 == tmp->getAdmins().end() && it4 == tmp->getClients().end())
-// 		throw std::string("KICK: User not in the channel !");
-// 	if (it3 == tmp->getAdmins().end())
-// 		throw std::string("KICK: Client cannot kick an admin user !");
-// 	if (tmp->getClients().find(name) != tmp->getClients().end())
-// 		tmp->getClients().erase(tmp->getClients().find(name));
-// 	if (!reason.empty())
-// 	{
-// 		std::string	msg = client->getNickname() + " has been kick because " + reason;
-// 		send(client->_socket_fd, msg.c_str(), msg.size(), 0);
-// 	}
-// 	else
-// 	{
-// 		std::string	msg = client->getNickname() + " has been kick";
-// 		send(client->_socket_fd, msg.c_str(), msg.size(), 0);
-// 	}
-// }
-
 void Server::kick_exec(Client *client, std::string channel, std::string name, std::string reason)
 {
 	Channel	*tmp = NULL;
-	std::string dest = "dest";
 	if (_channel.find(channel) != _channel.end())
 		tmp = _channel[channel];
-	std::map<std::string, Client *> admins = tmp->getAdmins();
-	std::map<std::string, Client *> clients = tmp->getClients();
-	std::map<std::string, Client *>::iterator it1 = admins.find(client->getNickname());
-	std::map<std::string, Client *>::iterator it2 = clients.find(client->getNickname());
-	std::map<std::string, Client *>::iterator it3 = admins.find(name);
-	std::map<std::string, Client *>::iterator it4 = clients.find(name);
-
 	if (tmp == NULL)
 	{
 		std::string err = ERR_NOSUCHCHANNEL(client->getNickname(), channel);
-		send(client->getSocket(), err.c_str(), err.size(),0);
-		// throw std::string("KICK: Channel does not exist !");
+		send(client->getSocket(), err.c_str(), err.size(), 0);
+		throw std::string("KICK: Channel does not exist !");
 	}
-	if (it1 == tmp->getAdmins().end() && it2 == tmp->getClients().end())
+	std::map<std::string, Client *> admins = tmp->getAdmins();
+	std::map<std::string, Client *> clients = tmp->getClients();
+	std::map<std::string, Client *>::iterator it1 = admins.find(client->getNickname());
+	std::map<std::string, Client *>::iterator it3 = admins.find(name);
+	std::map<std::string, Client *>::iterator it4 = clients.find(name);
+
+	if (client->getNickname() == name)
 	{
-		std::string err = ERR_USERNOTINCHANNEL(client->getNickname(), client->getNickname(), channel);
+		std::string err = NOTICE_CLIENT_INVITE(client->getNickname());
 		send(client->getSocket(), err.c_str(), err.size(),0);
-		throw std::string("KICK: Client is not in the channel !");
+        throw std::string("KICK: Client cannot kick himself !");
 	}
-	if (it1 == tmp->getAdmins().end())
+	if (it1 == admins.end())
 	{
 		std::string err = ERR_CHANOPRIVSNEED(client->getNickname(), channel);
 		send(client->getSocket(), err.c_str(), err.size(),0);
 		throw std::string("KICK: Client cannot kick user if not admin !");
 	}
-	if (it3 == tmp->getAdmins().end() && it4 == tmp->getClients().end())
+	if (it4 == clients.end())
 	{
+		std::cout << "JE RENTRE" << std::endl;
 		std::string err = ERR_NOTONCHANNEL(client->getNickname(), channel);
 		send(client->getSocket(), err.c_str(), err.size(),0);
 		throw std::string("KICK: User not in the channel !");
 	}
-	if (it3 == tmp->getAdmins().end())
+	if (it3 != admins.end())
 		throw std::string("KICK: Client cannot kick an admin user !");
-	// if (tmp->getClients().find(name) != tmp->getClients().end())
-    //     tmp->getClients().erase(tmp->getClients().find(name));
-	std::cout << "reason : " << reason << std::endl;
 	if (!reason.empty())
 	{
-		std::string to_send = RPL_PRIVMSG_CHANNEL(client->getNickname(), client->getNickname(), reason.c_str());
-		std::cout << "le message : " << to_send << std::endl; 
-		send(client->getSocket(), to_send.c_str(), to_send.size(), 0);
-		std::string	msg = KICK_CLIENT(client->getUsername(), client->getNickname(), channel, "KICK", dest);
-		std::cout << "je rentre dans le kick avec reason : " << msg << std::endl;
-		send(client->getSocket(), msg.c_str(), msg.size(), 0);
+		std::cout << "LOOOOOOL" <<std::endl;
+		std::string	msg = KICK_CLIENT_REASON(it4->second->getNickname(), it4->second->getUsername(), "KICK", channel, name, reason);
+		tmp->chanmsg(msg, "");
 	}
 	else
 	{
-		std::string	msg = client->getNickname() + " has been kick";
-		std::cout << "je rentre dans le kick sans reason : " << msg << std::endl;
-		send(client->_socket_fd, msg.c_str(), msg.size(), 0);
+		std::string	msg = KICK_CLIENT(client->getNickname(), client->getUsername(), "KICK", channel, name);
+		tmp->chanmsg(msg, "");
 	}
+	tmp->rmClients(name);
 }

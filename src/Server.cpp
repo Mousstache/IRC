@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: mvachera <mvachera@student.42.fr>          +#+  +:+       +#+        */
+/*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:21:41 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/05 17:33:35 by mvachera         ###   ########.fr       */
+/*   Updated: 2024/04/28 23:21:17 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,12 @@
 #include <unistd.h>
 #include <iostream>
 #include <fcntl.h> 
+
+std::string int_to_string(int value) {
+    char buffer[20]; // Assez grand pour contenir l'entier converti en chaîne
+    std::sprintf(buffer, "%d", value);
+    return std::string(buffer);
+}
 
 void Server::exitWithError(std::string errorMessage)
 {
@@ -29,6 +35,8 @@ std::string Server::getPassword()
 {
 	return (_password);
 }
+
+
 void Server::printserv()
 {
 }
@@ -65,6 +73,7 @@ Server::Server(std::string port, std::string password)
 	_socket = -1;
 	_bin = -1;
 	_lis = -1;
+	_old_buf = "";
 	_socket = socket(AF_INET, SOCK_STREAM, 0);
 	if (_socket < 0)
 	{
@@ -91,6 +100,9 @@ Server::Server(std::string port, std::string password)
 		std::cerr << "sock error" << std::endl;
 		return ;
 	}
+	const int enable = 1;
+	if (setsockopt(_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    // error("setsockopt(SO_REUSEADDR) failed");
 	memset((char *)&_sin, 0, sizeof(_sin)); // Use memset instead of bzero
 	_sin.sin_family = AF_INET;
 	_sin.sin_port = htons(_port);
@@ -126,6 +138,7 @@ Server::~Server()
 }
 
 void Server::serving() {
+	this->index = 0;
     int max_sd, new_socket;
     fd_set rfds, tmp_rfds;
     struct sockaddr_in client;
@@ -140,6 +153,17 @@ void Server::serving() {
 
     while (server_off == false)
     {
+		if(_client.size() == 0)
+		{
+        	_client[0] = new Client(500, client);
+        	_client[0]->setNickname("bot");
+        	_client[0]->setPassword("bot");
+        	_client[0]->setUsername("bot");
+        	_client[0]->setRegister(true);
+        	FD_SET(0, &rfds);
+        	if (0 > max_sd)
+        	    max_sd = 0;
+    	}
     	tmp_rfds = rfds;
 		if (select(max_sd + 1, &tmp_rfds, NULL, NULL, NULL) == -1) {
 			return;
@@ -160,8 +184,8 @@ void Server::serving() {
         {
             int client_socket = it->first;
             if (FD_ISSET(client_socket, &tmp_rfds)) {
-                char buffer[1024];
-                int bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
+                char buffer[1024] = {0};
+                int bytes_received = recv(client_socket, buffer, sizeof(buffer) - 1, 0);
                 if (bytes_received <= 0)
                 {
                     std::cout << "Client on socket " << client_socket << " " << it->second->getUsername() << " disconnected." << std::endl;
@@ -173,7 +197,6 @@ void Server::serving() {
                 }
                 else
                 {
-                    buffer[bytes_received] = '\0';
                     std::cout << std::endl;
                     parse(it->second, buffer);
                     std::cout << "Received from client " << client_socket << ": [" << buffer << "]" << std::endl;
@@ -201,21 +224,37 @@ int	cmdparser(const std::string &str)
 	return (0);
 }
 
-void Server::exec_cmd(std::string const &command, std::string const &value,
-	Client *client)
+void Server::exec_cmd(std::string const &command, std::string const &value, Client *client)
 {
 	if (command == "PASS")
 	{
 		if (value != this->getPassword())
 		{
-			std::cout << "BAD PASSWORD" << std::endl;
+			// std::cout << "BAD PASSWORD" << std::endl;
+			std::string err = "BAD PASSWORD";
+			send(client->getSocket(), err.c_str(), err.size(), 0);
+			// throw std::string("BAD PASSWORD");
+			return ;
 		}
 		client->setPassword(value);
 		client->checkplus();
 	}
 	else if (command == "NICK")
 	{
-		client->setNickname(value);
+		for (std::map<int, Client *>::iterator it = _client.begin(); it != _client.end(); ++it)
+		{
+		    if (it->second->getNickname() == value)
+		    {
+				// std::string nick = ERR_NICKNAMEINUSE(value);
+				// std::cout << "le message : " << nick << std::endl;
+				// send(client->getSocket(), nick.c_str(), nick.size(), 0);
+				nick_exec(client, "nick" + int_to_string(this->index));
+				client->checkplus();
+				this->index++;
+				return ;
+			}
+		}
+		nick_exec(client, value);
 		client->checkplus();
 	}
 	else if (command == "USER")
@@ -243,7 +282,7 @@ void Server::set_id(std::string str, Client *client)
 		if (cmdEnd == std::string::npos)
 			break ;
 		std::string command = str.substr(cmdStart, cmdEnd - cmdStart);
-		std::cout << "Command: " << command << std::endl;
+		// std::cout << "Command: " << command << std::endl;
 		valueStart = str.find_first_not_of(" \r\n", cmdEnd);
 		if (valueStart == std::string::npos)
 			break ;
@@ -251,7 +290,7 @@ void Server::set_id(std::string str, Client *client)
 		if (valueEnd == std::string::npos)
 			break ;
 		std::string value = str.substr(valueStart, valueEnd - valueStart);
-		std::cout << "Value: " << value << std::endl;
+		// std::cout << "Value: " << value << std::endl;
 		if (cmdparser(command) == 4)
 		{
 			exec_cmd(command, value, client);
@@ -274,56 +313,69 @@ int	Server::which_command(std::string cmd)
 		return (4);
 	if (cmd == "MODE")
 		return (5);
-	if (cmd == "PART")
-		return (6);
-	return (-1);
+	if (cmd == "NICK")
+        return (6);
+	if (cmd == "QUIT" || cmd == "PING")
+		return (7);
+    return (-1);
 }
 
-void	Server::cmd_pars(Client *client, std::string buffer)
+void    Server::cmd_pars(Client *client, std::string buffer)
 {
-	try {
-		size_t	cmdEnd = buffer.find_first_of(" \t\r\n", 0);
-		if (cmdEnd == std::string::npos)
-			throw std::string("Command does not exist");
-		std::string	cmd = buffer.substr(0, cmdEnd);
+	if (!_old_buf.empty())
+	{
+		std::string tmp;
+		tmp = buffer;
+		buffer = _old_buf + tmp;
+		if (std::strchr(tmp.c_str(), '\r') != NULL && std::strchr(tmp.c_str(), '\n') != NULL)
+			_old_buf = "";
+	}
+    try {
+        size_t    cmdEnd = buffer.find_first_of(" \t\r\n", 0);
+        if (cmdEnd == std::string::npos)
+            throw std::string("Command does not exist !");
+        std::string    cmd = buffer.substr(0, cmdEnd);
 
-		switch (which_command(cmd)) {
-			case 0:
-				join_pars(client, buffer);
+        switch (which_command(cmd)) {
+            case 0:
+                join_pars(client, buffer);
+                break;
+            case 1:
+                kick_pars(client, buffer);
+                break;
+            case 2:
+                invite_pars(client, buffer);
+                break;
+            case 3:
+                topic_pars(client, buffer);
+                break;
+            case 4:
+                privmsg_pars(client, buffer);
+                break;
+            case 5:
+                mode_pars(client, buffer);
+                break;
+            case 6:
+                nick_pars(client, buffer);
+                break;
+			case 7:
+				ping_pars(client, buffer);
 				break;
-			case 1:
-				kick_pars(client, buffer);
-				break;
-			case 2:
-				invite_pars(client, buffer);
-				break;
-			case 3:
-				topic_pars(client, buffer);
-				break;
-			case 4:
-				privmsg_pars(client, buffer);
-				break;
-			case 5:
-				mode_pars(client, buffer);
-				break;
-			case 6:
-				part_pars(client, buffer);
-				break;
-			default :
-				throw std::string("Command does not exist");
-		}
-	}
-	catch (const std::string &e) {
-		std::cout << e << std::endl;
-		// send(client->_socket_fd, e.c_str(), e.size(), 0);
-		// clear buffer
-	}
+            default :
+                throw std::string("Command does not exist lol!");
+        }
+    }
+    catch (const std::string &e) {
+        // std::cout << e << std::endl;
+        // send(client->_socket_fd, e.c_str(), e.size(), 0);
+        // clear buffer
+    }
 }
 
 bool Server::ping_pars(Client *client, std::string buffer)
 {
 	(void)buffer;
-	std::string pong = "PONG irc.example.com \r\n";
+	std::string pong = RPL_PONG;
 	send(client->_socket_fd, pong.c_str(), pong.size(), 0);
 	std::cout << pong << std::endl;
 	return (true);
@@ -332,14 +384,43 @@ bool Server::ping_pars(Client *client, std::string buffer)
 void Server::parse(Client *client, std::string buffer)
 {
 	size_t	bufferSize;
-
 	bufferSize = buffer.size();
-	if (buffer[bufferSize - 1] == '\n' && buffer[bufferSize - 2] == '\r')
+	if (buffer[bufferSize - 1] != '\n' && buffer[bufferSize - 2] != '\r')
 	{
+		if (_old_buf.empty())
+			_old_buf = buffer;
+		else
+			_old_buf += buffer;
+	}
+	if (!_old_buf.empty())
+	{
+		std::string tmp;
+		tmp = buffer;
+		buffer = _old_buf + tmp;
+		if (std::strchr(tmp.c_str(), '\r') != NULL && std::strchr(tmp.c_str(), '\n') != NULL)
+			_old_buf = "";
+	}
+	if (std::strchr(buffer.c_str(), '\r') != NULL && std::strchr(buffer.c_str(), '\n') != NULL)
+	{
+		set_id(buffer, client);
 		if (!client->getRegister())
 		{
-			set_id(buffer, client);
-			std::cout << client->getUsername() << " check = " << client->getCheck() << std::endl;
+			if (_client.size() >  1)
+			{
+				// for (std::map<int, Client *>::iterator it = _client.begin(); it != _client.end(); ++it)
+				// {
+				//     if (it->second)
+				//     {
+				//         if (it->second->getNickname() == client->getNickname())
+				//         {
+				// 			std::cout << "nick >> " << it->second->getNickname() << " client  >>" << client->getNickname() << std::endl;
+				// 			client->setNickname("nick" + int_to_string(this->index));
+				// 			this->index++;
+				// 			break ;
+				//         }
+				//     }
+				// }
+			}
 			if (client->getCheck() == 3)
 			{
 				std::string welcome = ":irc.example.com 001 "
@@ -349,6 +430,7 @@ void Server::parse(Client *client, std::string buffer)
 				client->setRegister(true);
 				return ;
 			}
+			
 		}
 		else if (client->getRegister())
 		{

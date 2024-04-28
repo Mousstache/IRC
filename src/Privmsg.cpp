@@ -6,7 +6,7 @@
 /*   By: motroian <motroian@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2024/04/03 20:14:22 by mvachera          #+#    #+#             */
-/*   Updated: 2024/04/07 19:48:58 by motroian         ###   ########.fr       */
+/*   Updated: 2024/04/28 21:40:36 by motroian         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,43 +37,21 @@ void	Server::privmsg_pars(Client *client, std::string buffer)
 	while (msgEnd > 0 && (buffer[msgEnd] == ' ' ||  buffer[msgEnd] == '\t'
 		|| buffer[msgEnd] == '\r' || buffer[msgEnd] == '\n'))
 		msgEnd--;
-	std::string	msg = buffer.substr(msgStart, msgEnd - msgStart);
+	std::string	msg = buffer.substr(msgStart + 1, msgEnd - msgStart);
 	privmsg_exec(client, user, msg);
 }
-
-// void	Server::privmsg_exec(Client *client, std::string user, std::string msg)
-// {
-// 	(void)client;
-// 	Client	*tmp = NULL;
-// 	std::map<int, Client *>::iterator it = _client.begin();
-
-// 	for (it = _client.begin(); it != _client.end(); it++)
-// 	{
-// 		tmp = it->second;
-// 		if (tmp->getNickname() == user)
-// 			break ;
-// 	}
-// 	if (it == _client.end())
-// 		throw std::string("PRIVMSG: user does not exist !");
-// 	send(tmp->getSocket(), msg.c_str(), msg.size(), 0);
-// }
 
 void	Server::privmsg_exec(Client *client, std::string user, std::string msg)
 {
 	bool to_channel = false;
 	bool send_file = false;
-	int sock_test = client->getSocket();
 	std::string desti;
-	if (!client || user.empty() || msg.empty())
+	if (!client || user.empty())
 		return ;
 	if (user[0] == '#')
 	{
-		desti = user.substr(1, user.size()-1);
+		desti = user.substr(1, user.size() - 1);
 		to_channel = true;
-		// if (_channel[desti]->clientExist(client->getNickname()) == false)
-		// {
-		// 	return (false);
-		// }
 	}
 	if (size_t find = msg.find_first_of("DCC") != std::string::npos)
 		send_file = true;
@@ -81,39 +59,59 @@ void	Server::privmsg_exec(Client *client, std::string user, std::string msg)
 	{
 		//envoie un fichier
 	}
+	if (msg.size() == 0)
+	{
+		std::string err = ERR_NOTEXTTOSEND(client->getNickname());
+		send(client->getSocket(), err.c_str(), err.size(), 0); 	
+	}
 	else if (to_channel)
 	{
-		std::cout << "je rentre dans chan : " << desti << std::endl; 
-		std::cout << "taille du chan privexec : " << _channel.size() << std::endl;
 		if (_channel.find(desti) != _channel.end())
 		{
-			// std::cout << "name chan: " << _channel[desti]->getName() << "dest: " << user << std::endl;
     		if (_channel[desti]->getName() == desti)
 			{
-				for (std::map<int, Client*>::iterator it = _client.begin(); it != _client.end(); ++it) {
-					Client* client = it->second;
-					int clientSocket = client->getSocket();
-					if (clientSocket != sock_test)
+				if (_channel[desti]->clientExist(client->getNickname()) == false)
+				{
+					std::string err = ERR_NOTONCHANNEL(client->getNickname(), desti);
+					send(client->getSocket(), err.c_str(), err.size(), 0); 	
+				}
+				else
+				{
+					std::string bot = msg.substr(0, msg.size() - 2);
+					if (bot == "!bot")
 					{
-						std::string to_send = RPL_PRIVMSG_CHANNEL(client->getNickname(), user, msg.c_str());
-						std::cout << "le message : " << to_send << std::endl; 
-						send(clientSocket, to_send.c_str(), to_send.size(), 0);
+						std::string bott = RPL_PRIVMSG_CHANNEL(_client[0]->getNickname(), user, "Coucou c est Christophe tu as recu les photos de ma brique ?!\r\n");
+						_channel[desti]->chanmsg(bott, _client[0]->getNickname());
+					}
+					else
+					{
+						std::string to_send = RPL_PRIVMSG_CHANNEL(client->getNickname(), user, msg);
+						_channel[desti]->chanmsg(to_send, client->getNickname());
+						
 					}
 				}
 			}
-			// _channel[desti]->chanmsg(msg);
 		}
 	}
 	else
 	{
-		std::string to_send;
+		if (client->getNickname() == user)
+		{
+			std::string msg = ERR_NOSUCHNICK(client->getNickname(), user);
+			send(client->getSocket(), msg.c_str(), msg.size(), 0);
+			throw std::string("PRIVMSG: You cannot send a message to yourself !");
+		}
 		for (std::map<int, Client *>::iterator it = _client.begin(); it != _client.end(); it++)
     	{
     	    if (it->second->getNickname() == user)
     	    {
-				to_send = RPL_PRIVMSG_CLIENT(client->getNickname(), client->getUsername(), client->getRealname(), msg.c_str());
-				send(client->getSocket(), to_send.c_str(), to_send.size(), 0); 	
+				std::string to_send = RPL_PRIVMSG_CLIENT(client->getNickname(), client->getUsername(), user, msg);
+				send(it->second->getSocket(), to_send.c_str(), to_send.size(), 0); 
+				return ;
     	    }
     	}
+		std::string nomatch = ERR_NOSUCHNICK(client->getNickname(), user);
+   		send(client->getSocket(), nomatch.c_str(), nomatch.size(), 0);
+		throw std::string("PRIVMSG: User does not exist !");
 	}
 }
